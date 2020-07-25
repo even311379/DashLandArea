@@ -1,0 +1,1 @@
+map = {'width': '100%', 'height': '75vh', 'margin': "auto", "display": "block"}
