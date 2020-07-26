@@ -10,6 +10,7 @@ from dash.dependencies import Input, Output, State, ALL
 import flask
 import requests
 import json
+import shapely.geometry as sg
 
 import style
 from setting import app
@@ -24,7 +25,7 @@ app.layout = dbc.Container(
         dbc.Row(
             [
                 dbc.Col(
-                    dl.Map([dl.TileLayer(), dl.LayerGroup(id="drawing"), dl.LayerGroup([], id="polygons")],
+                    dl.Map([dl.TileLayer(url='http://mt0.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', maxZoom=20), dl.LayerGroup(id="drawing"), dl.LayerGroup([], id="polygons")],
                            id="map", style=style.map, center=(23.5, 120.5), zoom=8),
                     width=6, className='pl-5'
                 ),
@@ -45,8 +46,17 @@ app.layout = dbc.Container(
               [State("store", "data"), State("polygons", "children")])
 def map_click(click_lat_lng, n_clicks, data, polygons):
     trigger = dash.callback_context.triggered[0]["prop_id"]
+    print(trigger)
     # The map was clicked, add a new point.
     if trigger.split(".")[1] == "click_lat_lng":
+        if len(polygons) > 0:
+            for polygon in polygons:
+                # print(polygon['props']['positions'])
+                sg_poly = sg.Polygon(polygon['props']['positions'])
+                if (sg.Point(float(click_lat_lng[0]), float(click_lat_lng[1])).within(sg_poly)):
+                    print('you are within existing polygon')
+                    return data, '', polygons
+
         data.append(click_lat_lng)
         markers = [dl.CircleMarker(center=pos, id={'role': 'marker', 'index': i}) for i, pos in enumerate(data)]
         polyline = dl.Polyline(positions=data)
@@ -55,6 +65,7 @@ def map_click(click_lat_lng, n_clicks, data, polygons):
     else:
         polygons.append(dl.Polygon(positions=data))
         data, drawing = [], []
+    print(data, drawing, polygons)
     return data, drawing, polygons
 
 @app.callback(Output('client_ip','children'),
@@ -72,8 +83,13 @@ def OnRequest(url):
 @app.callback(Output('map','center'),
               [Input('country-dropdown','value')])
 def NavToCountry(value):
+    if value == None:
+        return (23.5, 120.5)
     return eval(value)
 
+# @app.callback(Output('json-text', 'children'),
+#               [Input('store','data')])
+# def ShoeMapClickData:
 
 if __name__ == "__main__":
     app.run_server(debug=True)
